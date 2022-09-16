@@ -2,6 +2,8 @@
 
 #include "pch.h"
 #include "CorePch.h"
+#include "ConcurrentQueue.h"
+#include "ConcurrentStack.h"
 
 #include <iostream>
 #include <thread>
@@ -10,52 +12,42 @@
 #include <future>
 #include <Windows.h>
 
-int32 x = 0;
-int32 y = 0;
-int32 r1 = 0;
-int32 r2 = 0;
+LockQueue<int32> q;
+LockStack<int32> s;
 
-volatile bool ready;
-
-void Thread_1()
+void Push()
 {
-    while(false == ready) {}
+    while (true)
+    {
+        int32 value = rand() % 100;
+        s.TryPush(value);
 
-    y = 1;  // Store y
-    r1 = x; // Load  x
+        // this_thread::sleep_for(10ms); 극한 상황 연출을 위해 주석처리.
+    }
 }
 
-void Thread_2()
+void Pop()
 {
-    while (false == ready) {}
+    while (true)
+    {
+        int32 data = 0;
+        if (true == s.TryPop(data))
+        {
+            cout << data << endl;
+        }
 
-    x = 1;  // Store x
-    r2 = y; // Load  y
+        // q.WaitPop(data); 만약 데이터가 일정하지 않은 간격으로 들어온다면.
+        // cout << data << endl; 
+    }
 }
 
 int main()
 {
-    int32 nCount = 0;
+    thread t1(Push);
+    thread t2(Pop);
 
-    while (true)
-    {
-        ready = false;
-        ++nCount;
-
-        x = y = r1 = r2 = 0;
-
-        thread t1(Thread_1);
-        thread t2(Thread_2);
-
-        ready = true;
-
-        t1.join();
-        t2.join();
-
-        if (0 == r1 && 0 == r2) { break; } // 이런 상황이 안생기는게 맞는데, 어떤 컴퓨터는 멈추게됨.
-    }
-
-    cout << nCount << "번 만에 빠져나옴!" << endl;
+    t1.join();
+    t2.join();
 
     return 0;
 }
